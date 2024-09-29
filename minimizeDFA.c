@@ -1,121 +1,146 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <stdbool.h>
 
-#define MAX 100
+#define MAX_STATES 100
+#define MAX_INPUTS 10
 
-int main(void) {
-        int numberOfStates = 0;
-        printf("Enter the number of states: ");
-        scanf("%d", &numberOfStates);
+int transition[MAX_STATES][MAX_INPUTS];
+bool final_states[MAX_STATES];
+bool marked[MAX_STATES][MAX_STATES];
+int num_states, num_inputs, num_final_states;
+int final[MAX_STATES];
+int input_symbols[MAX_INPUTS];
 
-        int numberOfFinalStates = 0;
-        printf("Enter the number of final states: ");
-        scanf("%d", &numberOfFinalStates);
-        int finalStates[MAX];
-        for (int i = 0; i < numberOfFinalStates; i++) {
-                printf("Enter the %d final state: ", i + 1);
-                scanf("%d", &finalStates[i]);
+void initialize() {
+    for (int i = 0; i < MAX_STATES; i++) {
+        for (int j = 0; j < MAX_INPUTS; j++) {
+            transition[i][j] = -1;
         }
+        final_states[i] = false;
+    }
+}
 
-        int numberOfInputs = 0;
-        printf("Enter the number of inputs: ");
-        scanf("%d", &numberOfInputs);
-        int inputArray[MAX];
-        for (int i = 0; i < numberOfInputs; i++) {
-                printf("Enter %d input: ", i + 1);
-                scanf("%d", &inputArray[i]);
-        }
+void mark_final_states() {
+    for (int i = 0; i < num_final_states; i++) {
+        final_states[final[i]] = true;
+    }
+}
 
-        int adj[MAX][MAX];
-        for (int i = 0; i < MAX; i++) {
-                for (int j = 0; j < MAX; j++) {
-                        adj[i][j] = -1;
-                }
+void minimize() {
+    for (int i = 0; i < num_states; i++) {
+        for (int j = 0; j < num_states; j++) {
+            if (final_states[i] != final_states[j]) {
+                marked[i][j] = true;
+            }
         }
-
-        for (int i = 0; i < numberOfStates; i++) {
-                for (int j = 0; j < numberOfInputs; j++) {
-                        printf("Enter the transition [%d] on input [%d]: ", i, inputArray[j]);
-                        scanf("%d", &adj[i][j]);
-                }
-        }
-        for (int i = 0; i < numberOfStates; i++) {
-                for (int j = 0; j < numberOfInputs; j++) {
-                        printf("Enter the transition [%d] on input [%d]: ", i, inputArray[j]);
-                        scanf("%d", &adj[i][j]);
-                }
-        }
-        int statePartition[MAX];
-        int numPartitions = 2;
-        printf("NUmber of states: %d",numberOfStates);
-        for (int i = 0; i < numberOfStates; i++) {
-                printf("i value in loop : %d\n",i);
-                int final = 0;
-                for(int j = 0 ; j < numberOfFinalStates; j++){
-                        if(i == finalStates[j]){
-                                final = 1;
-                                break;
+    }
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (int i = 0; i < num_states; i++) {
+            for (int j = 0; j < num_states; j++) {
+                if (!marked[i][j]) {
+                    for (int k = 0; k < num_inputs; k++) {
+                        int t1 = transition[i][k];
+                        int t2 = transition[j][k];
+                        if ((t1 != -1 && t2 != -1 && marked[t1][t2]) || (t1 == -1 && t2 != -1) || (t2 == -1 && t1 != -1)) {
+                            marked[i][j] = true;
+                            changed = true;
+                            break;
                         }
+                    }
                 }
-                printf("OUTOFFOR\n");
-                if(final == 1){
-                        statePartition[i] = 1;
-                }
-                else{
-                        statePartition[i] = 0;
-                }
-
-
-                printf("Inside state partition loop\n");
+            }
         }
-        printf("Outside the state partition loop");
-        int changed = 0;
-        do {
-                changed = 0;
-                int newPartition[MAX][MAX];
-                int partitionCount = 0;
-                int partitionSize[MAX] = {0};
+    }
+}
 
-                for (int i = 0; i < numberOfStates; i++) {
-                        int found = 0;
-                        for (int p = 0; p < partitionCount; p++) {
-                                if (statePartition[i] == statePartition[newPartition[p][0]]) {
-                                        newPartition[p][partitionSize[p]++] = i;
-                                        found = 1;
-                                        break;
-                                }
-                        }
-                        if (!found) {
-                                newPartition[partitionCount][0] = i;
-                                partitionSize[partitionCount] = 1;
-                                partitionCount++;
-                        }
-                }
-
-                for (int p = 0; p < partitionCount; p++) {
-                        for (int j = 0; j < partitionSize[p]; j++) {
-                                int state = newPartition[p][j];
-                                for (int k = 0; k < numberOfInputs; k++) {
-                                        int nextState = adj[state][k];
-                                        if(nextState != -1 && statePartition[nextState] != statePartition[newPartition[p][0]]){
-                                                changed = 1;
-                                                break;
-                                        }
-                                }
-                        }
-                }
-                if (changed) {
-                        memcpy(statePartition, newPartition, sizeof(newPartition));
-                }
-        } while (changed);
-        printf("Outside dowhile\n");
-
-
-        printf("\nMinimized DFA:\n");
-        for (int i = 0; i < numberOfStates; i++) {
-                printf("State %d is in partition %d\n", i, statePartition[i]);
+void display_initial_dfa() {
+    printf("\nInitial DFA state table:\n");
+    printf("State ");
+    for (int i = 0; i < num_inputs; i++) {
+        printf("%d ", input_symbols[i]);
+    }
+    printf("\n");
+    for (int i = 0; i < num_states; i++) {
+        printf("%d    ", i);
+        for (int j = 0; j < num_inputs; j++) {
+            if (transition[i][j] != -1) {
+                printf("%d ", transition[i][j]);
+            } else {
+                printf("- ");
+            }
         }
+        printf("\n");
+    }
+}
 
-        return 0;
+void display_minimized_dfa() {
+    printf("\nMinimized DFA state table:\n");
+    printf("State ");
+    for (int i = 0; i < num_inputs; i++) {
+        printf("%d ", input_symbols[i]);
+    }
+    printf("\n");
+    for (int i = 0; i < num_states; i++) {
+        bool unique = true;
+        for (int j = 0; j < i; j++) {
+            if (!marked[i][j]) {
+                unique = false;
+                break;
+            }
+        }
+        if (unique) {
+            printf("%d    ", i);
+            for (int k = 0; k < num_inputs; k++) {
+                if (transition[i][k] != -1) {
+                    printf("%d ", transition[i][k]);
+                } else {
+                    printf("- ");
+                }
+            }
+            printf("\n");
+        }
+    }
+}
+
+int main() {
+    initialize();
+    
+    printf("Enter the number of states: ");
+    scanf("%d", &num_states);
+    
+    printf("Enter the number of inputs: ");
+    scanf("%d", &num_inputs);
+    
+    printf("Enter the input symbols (space-separated): ");
+    for (int i = 0; i < num_inputs; i++) {
+        scanf("%d", &input_symbols[i]);
+    }
+    
+    printf("Enter the state transition table:\n");
+    for (int i = 0; i < num_states; i++) {
+        for (int j = 0; j < num_inputs; j++) {
+            printf("Transition from state %d with input %d: ", i, input_symbols[j]);
+            scanf("%d", &transition[i][j]);
+        }
+    }
+    
+    printf("Enter the number of final states: ");
+    scanf("%d", &num_final_states);
+    
+    printf("Enter the final states (space-separated): ");
+    for (int i = 0; i < num_final_states; i++) {
+        scanf("%d", &final[i]);
+    }
+    
+    display_initial_dfa();
+    
+    mark_final_states();
+    minimize();
+    
+    display_minimized_dfa();
+    
+    return 0;
 }
